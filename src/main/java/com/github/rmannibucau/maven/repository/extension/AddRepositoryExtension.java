@@ -30,6 +30,7 @@ import java.util.Map;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.maven.AbstractMavenLifecycleParticipant;
 import org.apache.maven.MavenExecutionException;
+import org.apache.maven.artifact.repository.ArtifactRepository;
 import org.apache.maven.execution.MavenSession;
 import org.apache.maven.project.MavenProject;
 import org.codehaus.plexus.component.annotations.Component;
@@ -80,27 +81,41 @@ public class AddRepositoryExtension extends AbstractMavenLifecycleParticipant {
             }
         }
 
-        filter(currentProject.getRemoteProjectRepositories(), props);
-        filter(currentProject.getRemotePluginRepositories(), props);
+        final StringSubstitutor stringSubstitutor = new StringSubstitutor(props);
+        filterRepositories(currentProject.getRepositories(), stringSubstitutor);
+        filterRepositories(currentProject.getPluginRepositories(), stringSubstitutor);
+        filterArtifactRepositories(currentProject.getPluginArtifactRepositories(), stringSubstitutor);
+        filterArtifactRepositories(currentProject.getRemoteArtifactRepositories(), stringSubstitutor);
+        filterRemoteRepositories(currentProject.getRemoteProjectRepositories(), stringSubstitutor);
+        filterRemoteRepositories(currentProject.getRemotePluginRepositories(), stringSubstitutor);
     }
 
-    private void filter(final List<RemoteRepository> repos, final Map<String, String> props) {
-        final StringSubstitutor stringSubstitutor = new StringSubstitutor(props);
+    private void filterArtifactRepositories(final List<ArtifactRepository> repos, final StringSubstitutor stringSubstitutor) {
+        repos.stream().filter(it -> it.getUrl().contains("${")).forEach(it -> it.setUrl(stringSubstitutor.replace(it.getUrl())));
+    }
+
+    private void filterRepositories(final List<org.apache.maven.model.Repository> repos, final StringSubstitutor stringSubstitutor) {
+        repos.stream().filter(it -> it.getUrl().contains("${")).forEach(it -> it.setUrl(stringSubstitutor.replace(it.getUrl())));
+    }
+
+    private void filterRemoteRepositories(final List<RemoteRepository> repos, final StringSubstitutor stringSubstitutor) {
         final Iterator<RemoteRepository> iterator = repos.iterator();
         final Collection<RemoteRepository> added = new ArrayList<>();
         while (iterator.hasNext()) {
             final RemoteRepository repository = iterator.next();
             if (repository.getUrl().contains("${")) {
-                iterator.remove();
                 final String newUrl = stringSubstitutor.replace(repository.getUrl());
-                added.add(new RemoteRepository.Builder(repository.getId(), repository.getContentType(), newUrl)
-                        .setAuthentication(repository.getAuthentication())
-                        .setProxy(repository.getProxy())
-                        .setMirroredRepositories(repository.getMirroredRepositories())
-                        .setReleasePolicy(repository.getPolicy(false))
-                        .setSnapshotPolicy(repository.getPolicy(true))
-                        .setRepositoryManager(repository.isRepositoryManager())
-                        .build());
+                if (!newUrl.equalsIgnoreCase(repository.getUrl())) {
+                    iterator.remove();
+                    added.add(new RemoteRepository.Builder(repository.getId(), repository.getContentType(), newUrl)
+                            .setAuthentication(repository.getAuthentication())
+                            .setProxy(repository.getProxy())
+                            .setMirroredRepositories(repository.getMirroredRepositories())
+                            .setReleasePolicy(repository.getPolicy(false))
+                            .setSnapshotPolicy(repository.getPolicy(true))
+                            .setRepositoryManager(repository.isRepositoryManager())
+                            .build());
+                }
             }
         }
         repos.addAll(0, added);
