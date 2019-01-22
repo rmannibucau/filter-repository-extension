@@ -1,0 +1,35 @@
+= Maven Repository Filter Extension
+
+Gives the ability to filter repositories with maven placeholders.
+
+== Setup
+
+[source,xml]
+----
+<!-- in build section -->
+<extensions>
+  <extension>
+    <groupId>com.github.rmannibucau</groupId>
+    <artifactId>filter-repository-extension</artifactId>
+    <version>${extension.version}</version>
+  </extension>
+</extensions>
+----
+
+== Usage
+
+[source,xml]
+----
+<repository>
+  <id>company.dynamic.snapshots</id>
+  <url>https://foo.com/nexus/content/repositories/snapshots/${git.branch}</url>
+  <releases>
+    <enabled>false</enabled>
+  </releases>
+  <snapshots>
+    <enabled>true</enabled>
+  </snapshots>
+</repository>
+----
+
+
