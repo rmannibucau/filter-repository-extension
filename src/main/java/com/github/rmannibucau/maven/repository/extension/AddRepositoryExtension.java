@@ -57,12 +57,22 @@ public class AddRepositoryExtension extends AbstractMavenLifecycleParticipant {
 
         File dotGitDirectory = new File(currentProject.getBasedir(), ".git");
         if (!dotGitDirectory.exists()) {
-            dotGitDirectory = session.getAllProjects().stream()
-                   .map(it -> new File(it.getBasedir(), ".git"))
-                   .filter(File::exists)
-                   .sorted(comparing(File::length))
-                   .findFirst()
-                   .orElse(null);
+            dotGitDirectory = session.getAllProjects()
+                                     .stream()
+                                     .map(it -> new File(it.getBasedir(), ".git"))
+                                     .filter(File::exists)
+                                     .min(comparing(File::length))
+                                     .orElse(null);
+        }
+        if (dotGitDirectory == null) {
+            MavenProject currentProjectIt = currentProject.getParent();
+            while (currentProjectIt != null) {
+                dotGitDirectory = new File(currentProjectIt.getBasedir(), ".git");
+                if (dotGitDirectory.exists()) {
+                    break;
+                }
+                currentProjectIt = currentProjectIt.getParent();
+            }
         }
         if (dotGitDirectory != null && dotGitDirectory.exists()) {
             try(final Repository repository = new FileRepositoryBuilder().setGitDir(dotGitDirectory).readEnvironment().findGitDir().build()) {
